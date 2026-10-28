@@ -466,7 +466,7 @@
     roomRef.set(initial).then(function(){
       attachRoomListener();
       document.getElementById("lobbyCode").textContent = roomCode;
-      var url = location.href.replace(/index\.html.*$/, "player.html");
+      var url = location.href.replace(/[^\/]*(\?.*)?(#.*)?$/, "") + "player.html";
       document.getElementById("lobbyUrl").textContent = url;
       document.getElementById("roomBadgeCode").textContent = roomCode;
       document.getElementById("roomBadge").hidden = false;
