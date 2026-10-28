@@ -1,0 +1,817 @@
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Roaring Twenties Jeopardy — Host</title>
+<style>
+  :root{
+    --bg:#0b1511; --surface:#132019; --surface-2:#1a2b21;
+    --ink:#f3ead9; --ink-dim:#c9bfa9; --gold:#c9a24b; --gold-bright:#e8c874;
+    --emerald:#1f4d3d; --burgundy:#7a2331; --burgundy-bright:#a8364a; --focus:#e8c874;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body{
+    background: var(--bg); color: var(--ink);
+    font-family: 'Josefin Sans', 'Trebuchet MS', sans-serif;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 20px; min-height: 100%;
+    background-image:
+      radial-gradient(circle at 15% 8%, rgba(201,162,75,0.08), transparent 40%),
+      radial-gradient(circle at 85% 92%, rgba(122,35,49,0.10), transparent 45%);
+  }
+  html, body { height: 100%; }
+  h1,h2,h3 { text-wrap: balance; margin: 0; }
+  .wrap{ max-width: 1180px; margin: 0 auto; display:flex; flex-direction:column; gap:22px; }
+
+  .marquee{
+    position: relative; text-align:center; padding: 22px 12px 18px;
+    border: 2px solid var(--gold); border-radius: 6px;
+    background: linear-gradient(180deg, var(--surface-2), var(--surface));
+    box-shadow: 0 0 0 6px var(--bg), 0 0 0 7px rgba(201,162,75,0.35);
+  }
+  .marquee::before, .marquee::after{
+    content:""; position:absolute; top:10px; bottom:10px; width: 10px;
+    background-image: radial-gradient(circle, var(--gold-bright) 0 2.5px, transparent 3px);
+    background-size: 100% 18px; opacity:.8;
+  }
+  .marquee::before{ left:10px; } .marquee::after{ right:10px; }
+  .eyebrow{ letter-spacing:.35em; text-transform:uppercase; font-size:.72rem; color:var(--gold); margin-bottom:6px; }
+  .title{
+    font-family:'Bebas Neue','Josefin Sans',sans-serif; font-size: clamp(2.2rem, 6vw, 3.6rem);
+    letter-spacing:.04em; color: var(--gold-bright); text-shadow: 0 0 18px rgba(232,200,116,0.25); line-height:1;
+  }
+  .subtitle{ font-family:'Libre Caslon Text', Georgia, serif; font-style:italic; color: var(--ink-dim); margin-top:8px; font-size: .98rem; }
+  .top-controls{ display:flex; justify-content:center; gap:10px; margin-top:14px; flex-wrap:wrap; }
+
+  button{
+    font-family:'Josefin Sans',sans-serif; font-weight:600; letter-spacing:.03em; border-radius:4px;
+    border: 1.5px solid var(--gold); background: transparent; color: var(--gold-bright);
+    padding: 8px 16px; cursor:pointer; font-size:.85rem; transition: background .15s, color .15s, transform .1s;
+  }
+  button:hover{ background: var(--gold); color:#1a1208; }
+  button:active{ transform: scale(.97); }
+  button:focus-visible{ outline: 3px solid var(--focus); outline-offset:2px; }
+  button.primary{ background: var(--gold); color:#1a1208; }
+  button.primary:hover{ background: var(--gold-bright); }
+  button.ghost{ border-color: var(--ink-dim); color: var(--ink-dim); }
+  button.ghost:hover{ background: var(--ink-dim); color:#1a1208; }
+  button.danger{ border-color: var(--burgundy-bright); color: var(--burgundy-bright); }
+  button.danger:hover{ background: var(--burgundy-bright); color:#1a1208; }
+  button:disabled{ opacity:.4; cursor:default; }
+  button:disabled:hover{ background:transparent; }
+
+  .scoreboard{ display:grid; grid-template-columns: repeat(auto-fit, minmax(190px,1fr)); gap:12px; }
+  .team-card{
+    background: var(--surface); border:1px solid rgba(201,162,75,0.35); border-radius:6px;
+    padding:12px 14px; display:flex; flex-direction:column; gap:6px; min-width:0;
+  }
+  .team-card.active{ border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), 0 0 14px rgba(201,162,75,0.25); }
+  .team-card.buzzed{ border-color: var(--burgundy-bright); box-shadow: 0 0 0 1px var(--burgundy-bright), 0 0 16px rgba(168,54,74,0.4); }
+  .team-name-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; min-width:0; }
+  .team-name{ font-weight:700; letter-spacing:.03em; font-size:.95rem; color: var(--gold-bright); }
+  .team-score{ font-family:'Bebas Neue',sans-serif; font-size:2rem; letter-spacing:.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
+  .team-score.neg{ color: var(--burgundy-bright); }
+  .team-roster{ font-size:.72rem; color: var(--ink-dim); min-height: 1.2em; }
+  .score-btns{ display:flex; gap:6px; }
+  .score-btns button{ flex:1; padding:6px 4px; font-size:.78rem; }
+
+  .board{ display:grid; grid-template-columns: repeat(5, 1fr); gap:6px; }
+  .cat-head{
+    background: var(--emerald); border: 1px solid var(--gold); border-radius: 4px; padding: 10px 6px;
+    text-align:center; font-family:'Bebas Neue',sans-serif; letter-spacing:.03em; font-size: clamp(.78rem, 2.4vw, 1.05rem);
+    color: var(--gold-bright); display:flex; align-items:center; justify-content:center; min-height: 56px; line-height:1.15;
+  }
+  .tile{
+    background: var(--surface-2); border: 1px solid rgba(201,162,75,0.4); border-radius: 4px; min-height: 56px;
+    display:flex; align-items:center; justify-content:center; font-family:'Bebas Neue',sans-serif;
+    font-size: clamp(1rem, 3vw, 1.4rem); color: var(--gold); cursor:pointer; transition: background .12s, transform .12s;
+    font-variant-numeric: tabular-nums;
+  }
+  .tile:hover:not(.used){ background: var(--surface); color: var(--gold-bright); transform: translateY(-2px); }
+  .tile.used{ color: rgba(201,162,75,0.18); cursor:default; background: rgba(19,32,25,0.4); }
+  .tile:focus-visible{ outline:3px solid var(--focus); outline-offset:-2px; }
+
+  @media (max-width: 640px){
+    .board{ grid-template-columns: repeat(5, minmax(56px,1fr)); overflow-x:auto; }
+    .cat-head, .tile{ min-height:46px; padding:6px 3px; }
+  }
+
+  .overlay{
+    position: fixed; inset:0; background: rgba(5,9,7,0.92); display:flex; align-items:center; justify-content:center;
+    padding: max(16px, env(safe-area-inset-top,0px)) max(16px, env(safe-area-inset-right,0px)) max(16px, env(safe-area-inset-bottom,0px)) max(16px, env(safe-area-inset-left,0px));
+    z-index: 50;
+  }
+  .stage{
+    width:min(880px, 100%); background: linear-gradient(180deg, var(--surface-2), var(--surface));
+    border: 2px solid var(--gold); border-radius: 8px; box-shadow: 0 0 0 6px var(--bg), 0 0 0 7px rgba(201,162,75,0.35);
+    padding: 28px clamp(18px,4vw,40px) 26px; display:flex; flex-direction:column; gap:18px; max-height: 92vh; overflow-y:auto;
+  }
+  .stage-kicker{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; letter-spacing:.2em; text-transform:uppercase; font-size:.75rem; color: var(--gold); }
+  .clue-text{ font-family:'Libre Caslon Text', Georgia, serif; font-size: clamp(1.2rem, 3.4vw, 1.75rem); line-height:1.4; color: var(--ink); text-align:center; padding: 10px 0; }
+  .answer-text{ font-family:'Libre Caslon Text', Georgia, serif; font-style:italic; font-size: clamp(1.05rem, 2.8vw, 1.4rem); color: var(--gold-bright); text-align:center; border-top: 1px solid rgba(201,162,75,0.35); padding-top:16px; }
+  .stage-actions{ display:flex; justify-content:center; gap:10px; flex-wrap:wrap; }
+  .award-row{ display:flex; flex-direction:column; gap:8px; }
+  .award-row h3{ font-size:.78rem; letter-spacing:.2em; text-transform:uppercase; color:var(--ink-dim); text-align:center; }
+  .award-grid{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+  .award-grid button{ min-width:120px; }
+
+  .buzz-status{ text-align:center; font-family:'Bebas Neue',sans-serif; font-size: clamp(1.3rem,4vw,1.9rem); letter-spacing:.04em; }
+  .buzz-status.waiting{ color: var(--ink-dim); }
+  .buzz-status.won{ color: var(--gold-bright); text-shadow: 0 0 16px rgba(232,200,116,0.4); }
+
+  .dd-banner{ text-align:center; font-family:'Bebas Neue',sans-serif; letter-spacing:.06em; font-size: clamp(1.6rem,5vw,2.4rem); color: var(--burgundy-bright); text-shadow: 0 0 18px rgba(168,54,74,0.4); }
+  .wager-input{
+    font-family:'Bebas Neue',sans-serif; font-size:1.6rem; text-align:center; background: var(--surface);
+    border:1.5px solid var(--gold); border-radius:4px; color: var(--gold-bright); padding:8px; width: 160px;
+    margin: 0 auto; font-variant-numeric: tabular-nums; display:block;
+  }
+  .wager-input:focus-visible{ outline:3px solid var(--focus); }
+  .hint{ text-align:center; color:var(--ink-dim); font-size:.85rem; }
+
+  .setup-card{ width:min(560px,100%); }
+  .setup-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .num-teams{ display:flex; gap:8px; }
+  .num-teams button.selected{ background:var(--gold); color:#1a1208; }
+  .setup-names{ display:flex; flex-direction:column; gap:10px; }
+  .setup-names input{
+    font-family:'Josefin Sans',sans-serif; font-weight:600; font-size:1rem; background: var(--surface);
+    border:1.5px solid rgba(201,162,75,0.4); border-radius:4px; color: var(--ink); padding:9px 12px;
+  }
+  .setup-names input:focus-visible{ outline:3px solid var(--focus); }
+  .footer-note{ text-align:center; color:var(--ink-dim); font-size:.78rem; padding-bottom:4px; }
+
+  .room-code{
+    font-family:'Bebas Neue',sans-serif; font-size: clamp(3rem,10vw,5rem); letter-spacing:.15em;
+    color: var(--gold-bright); text-align:center; text-shadow: 0 0 24px rgba(232,200,116,0.35);
+  }
+  .join-url{ text-align:center; font-family:'Libre Caslon Text', Georgia, serif; font-size: 1rem; color: var(--ink-dim); }
+  .join-url b{ color: var(--gold-bright); }
+  .lobby-list{ display:flex; flex-direction:column; gap:8px; max-height: 320px; overflow-y:auto; }
+  .lobby-row{
+    display:flex; justify-content:space-between; align-items:center; background: var(--surface);
+    border:1px solid rgba(201,162,75,0.3); border-radius:4px; padding:8px 12px; font-size:.9rem;
+  }
+  .lobby-empty{ text-align:center; color: var(--ink-dim); font-style:italic; padding: 20px 0; }
+  [hidden]{ display:none !important; }
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Josefin+Sans:wght@400;600;700&family=Libre+Caslon+Text:ital@0;1&display=swap" rel="stylesheet">
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+
+<div class="wrap">
+  <div class="marquee">
+    <div class="eyebrow">U.S. History &middot; Unit Review &middot; Live Multiplayer (Host)</div>
+    <h1 class="title">The Roaring Twenties</h1>
+    <p class="subtitle">A Jeopardy&ndash;style review of the Jazz Age &middot; <span id="currentSetLabel">Set 1</span></p>
+    <div class="top-controls">
+      <button id="btnSound" class="ghost" aria-pressed="true">🔊 Sound On</button>
+      <span id="roomBadge" class="hint" hidden style="align-self:center;">Room code: <b id="roomBadgeCode" style="color:var(--gold-bright)"></b></span>
+      <button id="btnNewGame" class="ghost">New Game</button>
+    </div>
+  </div>
+
+  <div class="scoreboard" id="scoreboard"></div>
+  <div class="board" id="board" hidden></div>
+  <p class="footer-note" id="footerNote" hidden>Click any tile to reveal a clue, then open the buzzers for your students. One tile per category row is secretly a Daily Double.</p>
+</div>
+
+<!-- Setup overlay -->
+<div class="overlay" id="setupOverlay">
+  <div class="stage setup-card">
+    <h2 class="title" style="font-size:1.6rem;text-align:center;">Set Up Your Game</h2>
+    <div class="setup-row">
+      <span class="hint">Question set</span>
+      <div class="num-teams" id="setPicker"></div>
+    </div>
+    <div class="setup-row">
+      <span class="hint">Number of teams</span>
+      <div class="num-teams" id="numTeams"></div>
+    </div>
+    <div class="setup-names" id="setupNames"></div>
+    <div class="stage-actions">
+      <button class="primary" id="btnCreate">Create Game &amp; Get Room Code</button>
+    </div>
+  </div>
+</div>
+
+<!-- Lobby overlay -->
+<div class="overlay" id="lobbyOverlay" hidden>
+  <div class="stage setup-card">
+    <h2 class="title" style="font-size:1.4rem;text-align:center;">Students Join With This Code</h2>
+    <div class="room-code" id="lobbyCode">----</div>
+    <p class="join-url">Go to <b id="lobbyUrl">player.html</b> on your device</p>
+    <div class="lobby-list" id="lobbyList"></div>
+    <div class="stage-actions">
+      <button class="primary" id="btnStartGame">Start the Game</button>
+      <button class="ghost" id="btnBackToSetup">Back to Setup</button>
+    </div>
+  </div>
+</div>
+
+<!-- Clue overlay -->
+<div class="overlay" id="clueOverlay" hidden>
+  <div class="stage" id="clueStage"></div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- Game data (same three sets as the single-screen version) ---------------- */
+  var GAME_SETS = [
+    { id: "setA", label: "Set 1", categories: [
+      { name: "Boom Times", clues: [
+        { clue: "Mass-production techniques pioneered by this automaker put the Model T within reach of average Americans.", answer: "Who is Henry Ford?" },
+        { clue: "This buying method let families pay a little at a time for radios, cars, and appliances.", answer: "What is installment buying (buying on credit)?" },
+        { clue: "Investors used this risky practice of borrowing most of the money to purchase stock.", answer: "What is buying on margin?" },
+        { clue: "Warren Harding's 1920 campaign promised a “return” to this, a phrase that became a label for the whole decade's mood.", answer: "What is “normalcy” (a return to normalcy)?" },
+        { clue: "1920s Republican economic policy favored this combination of low taxes, little regulation, and pro-business government.", answer: "What is laissez-faire (pro-business) economic policy?" }
+      ]},
+      { name: "Culture & Harlem", clues: [
+        { clue: "This lively, improvised music genre, with roots in New Orleans, gave the decade its nickname.", answer: "What is jazz (the “Jazz Age”)?" },
+        { clue: "Young women who bobbed their hair, wore short skirts, and defied traditional norms were known by this name.", answer: "What is a flapper?" },
+        { clue: "This Harlem Renaissance poet wrote “The Negro Speaks of Rivers” and “I, Too.”", answer: "Who is Langston Hughes?" },
+        { clue: "This 1920s cultural movement, centered in a New York City neighborhood, celebrated African American art, literature, and music.", answer: "What is the Harlem Renaissance?" },
+        { clue: "This novelist captured the glamour and disillusionment of the era in “The Great Gatsby.”", answer: "Who is F. Scott Fitzgerald?" }
+      ]},
+      { name: "Red Scare & Nativism", clues: [
+        { clue: "Fear of communist and radical influence after WWI and the Russian Revolution sparked this nationwide panic.", answer: "What is the Red Scare?" },
+        { clue: "This 1924 law set strict quotas that sharply limited immigration, especially from southern and eastern Europe.", answer: "What is the Immigration Act of 1924 (National Origins Act)?" },
+        { clue: "This white supremacist group saw a major resurgence in the 1920s, spreading beyond the South and targeting Catholics, Jews, and immigrants along with Black Americans.", answer: "What is the Ku Klux Klan?" },
+        { clue: "This 1925 Tennessee trial put a teacher on trial for teaching evolution, pitting science against religious fundamentalism.", answer: "What is the Scopes (“Monkey”) Trial?" },
+        { clue: "This term describes the decade's preference for native-born Americans and suspicion of immigrants.", answer: "What is nativism?" }
+      ]},
+      { name: "New Media & Tech", clues: [
+        { clue: "This broadcast technology brought news, music, and entertainment directly into American living rooms for the first time.", answer: "What is radio?" },
+        { clue: "This aviator became a national hero after his solo nonstop flight across the Atlantic in 1927.", answer: "Who is Charles Lindbergh?" },
+        { clue: "Mass production made this invention affordable for ordinary families, reshaping where Americans could live, work, and travel.", answer: "What is the automobile?" },
+        { clue: "Silent films gave way to this new kind of movie, starting with “The Jazz Singer” in 1927.", answer: "What is a “talkie” (a talking picture / sound film)?" },
+        { clue: "New electric appliances like this one cut hours of hand-washing laundry out of a homemaker's week.", answer: "What is the washing machine?" }
+      ]},
+      { name: "Key Vocabulary", clues: [
+        { clue: "The movement of hundreds of thousands of Black Americans from the rural South to Northern cities in the early 1900s.", answer: "What is the Great Migration?" },
+        { clue: "This way of building a car moved the product past a row of workers who each performed one single job.", answer: "What is an assembly line?" },
+        { clue: "These laws banned the making, selling, and moving of alcohol across the United States beginning in January 1920.", answer: "What is Prohibition?" },
+        { clue: "A person who puts money into a business, like the 1920s aviation industry, hoping to earn more in return.", answer: "What is an investor?" },
+        { clue: "This art style broke from old rules and used bold, simple shapes; Aaron Douglas blended it with African art traditions.", answer: "What is modernism?" }
+      ]}
+    ]},
+    { id: "setB", label: "Set 2", categories: [
+      { name: "Boom Times", clues: [
+        { clue: "Many Americans invested heavily in this financial market during the decade, often borrowing to do so.", answer: "What is the stock market?" },
+        { clue: "This term describes the dramatic rise in spending on radios, cars, and appliances that defined the decade's economy.", answer: "What is consumerism (consumer culture)?" },
+        { clue: "This cabinet official, Andrew Mellon, pushed for deep tax cuts that mainly benefited businesses and the wealthy.", answer: "Who is the Secretary of the Treasury?" },
+        { clue: "This industry boomed in the 1920s, using new psychological techniques to convince Americans to buy more goods.", answer: "What is advertising?" },
+        { clue: "Despite the boom, this sector of the economy struggled all decade with overproduction and falling prices.", answer: "What is agriculture (farming)?" }
+      ]},
+      { name: "Culture & Harlem", clues: [
+        { clue: "This fast, kicking dance craze became a signature symbol of flapper culture in the 1920s.", answer: "What is the Charleston?" },
+        { clue: "This trumpet virtuoso and bandleader from New Orleans helped bring jazz to a nationwide audience.", answer: "Who is Louis Armstrong?" },
+        { clue: "This 1920 constitutional amendment gave women the right to vote, just as the decade's social attitudes began to shift.", answer: "What is the Nineteenth Amendment?" },
+        { clue: "Harlem Renaissance writer Zora Neale Hurston is best known for her fiction and folklore exploring this.", answer: "What is African American (Southern Black) culture and folklore?" },
+        { clue: "This term describes the generation of 1920s writers, including Hemingway and Fitzgerald, who felt disillusioned after World War I.", answer: "What is the Lost Generation?" }
+      ]},
+      { name: "Red Scare & Nativism", clues: [
+        { clue: "This U.S. attorney general ordered sweeping 1919–20 raids that rounded up thousands of suspected radicals and immigrants.", answer: "Who is A. Mitchell Palmer (the Palmer Raids)?" },
+        { clue: "These two Italian immigrant anarchists were controversially convicted and executed in 1927, in a case many believed was driven by anti-immigrant bias.", answer: "Who are Sacco and Vanzetti?" },
+        { clue: "This now-discredited belief, that certain racial or ethnic groups were biologically superior, helped fuel support for immigration restriction.", answer: "What is eugenics (scientific racism)?" },
+        { clue: "This former presidential candidate led the prosecution against Clarence Darrow in the 1925 Scopes evolution trial.", answer: "Who is William Jennings Bryan?" },
+        { clue: "This 1921 law set the first numerical immigration quotas, before being tightened further in 1924.", answer: "What is the Emergency Quota Act (Immigration Act of 1921)?" }
+      ]},
+      { name: "New Media & Tech", clues: [
+        { clue: "This new mass entertainment industry, built around ornate theaters and movie stars, exploded in popularity in the 1920s.", answer: "What is the movie industry (Hollywood)?" },
+        { clue: "This household utility, now wired into millions more homes, powered the radios and appliances families bought in the decade.", answer: "What is electricity?" },
+        { clue: "Babe Ruth became a national celebrity in this sport, helped along by new radio broadcasts of games.", answer: "What is baseball?" },
+        { clue: "Charles Lindbergh's single-engine plane, famous for his 1927 transatlantic flight, carried this name.", answer: "What is the Spirit of St. Louis?" },
+        { clue: "Assembly-line production and new paved roads combined to make this form of travel possible for ordinary families.", answer: "What is automobile (car) travel?" }
+      ]},
+      { name: "Key Vocabulary", clues: [
+        { clue: "Farming someone else's land and paying rent with most of your own crop, a system that often kept Southern families poor and in debt.", answer: "What is sharecropping?" },
+        { clue: "Making products in the same sizes with the same parts, so any piece fits any machine.", answer: "What is standardization?" },
+        { clue: "A now-discredited belief that a government could improve its people by controlling who was allowed to have children.", answer: "What is eugenics?" },
+        { clue: "The business and science of flying airplanes, an industry that grew fast in the 1920s and hired pilots, mechanics, and factory workers.", answer: "What is aviation?" },
+        { clue: "A performer who stands out alone; Louis Armstrong is said to have changed jazz into this kind of art.", answer: "What is a soloist?" }
+      ]}
+    ]},
+    { id: "setC", label: "Set 3", categories: [
+      { name: "Boom Times", clues: [
+        { clue: "This nickname for the decade, celebrating its booming economy and wild social changes, is also the name of this very game.", answer: "What are “the Roaring Twenties”?" },
+        { clue: "Department stores and mail-order catalogs expanded rapidly in the 1920s, reflecting this broader shift toward buying more goods.", answer: "What is consumerism (mass consumption)?" },
+        { clue: "This retail innovation, with name-brand items pre-wrapped on open shelves for shoppers to browse themselves, spread rapidly in the decade.", answer: "What is the self-service grocery store?" },
+        { clue: "President Calvin Coolidge, who succeeded Harding, was known for this hands-off governing philosophy that favored business with minimal interference.", answer: "What is “the business of America is business” (pro-business, laissez-faire government)?" },
+        { clue: "This 1920s tax policy, championed by Treasury Secretary Mellon, slashed top income tax rates for the wealthy.", answer: "What are Mellon's tax cuts (supply-side/trickle-down tax policy)?" }
+      ]},
+      { name: "Culture & Harlem", clues: [
+        { clue: "This Harlem Renaissance philosopher and editor compiled the influential 1925 anthology “The New Negro” and is often called the movement's father.", answer: "Who is Alain Locke?" },
+        { clue: "This famous Harlem ballroom was known for integrated audiences enjoying jazz and swing dancing all night long.", answer: "What is the Savoy Ballroom?" },
+        { clue: "Known as the “Empress of the Blues,” this singer became one of the most popular Black performers of the decade.", answer: "Who is Bessie Smith?" },
+        { clue: "Many young women in the 1920s shocked older generations by cutting their hair into this short, modern style.", answer: "What is a bob (bobbed hair)?" },
+        { clue: "This 1925 novel by F. Scott Fitzgerald critiques the emptiness behind the glittering wealth of the Jazz Age.", answer: "What is “The Great Gatsby”?" }
+      ]},
+      { name: "Red Scare & Nativism", clues: [
+        { clue: "Labor strikes in the 1920s were often blamed on this perceived foreign threat, fueling public fear and crackdowns.", answer: "What is communism (radicalism, the Red Scare)?" },
+        { clue: "The 1924 immigration law set quotas based on each nationality's share of the U.S. population in this earlier census year, favoring northern and western Europe.", answer: "What is 1890 (the 1890 census)?" },
+        { clue: "Besides Black Americans, the resurgent 1920s Klan also targeted members of these two religious groups.", answer: "Who are Catholics and Jews?" },
+        { clue: "In the Scopes Trial, teacher John Scopes was charged with violating this Tennessee state law banning the teaching of evolution.", answer: "What is the Butler Act?" },
+        { clue: "This term for insisting American culture stay dominant and unchanged by immigrant influence fueled 1920s immigration restriction.", answer: "What is nativism (“100% Americanism”)?" }
+      ]},
+      { name: "New Media & Tech", clues: [
+        { clue: "This 1927 film, the first with synchronized dialogue and singing, marked the beginning of the end for silent movies.", answer: "What is “The Jazz Singer”?" },
+        { clue: "This technology let families across the country hear the same broadcast, from presidential speeches to World Series games, at the same moment.", answer: "What is radio?" },
+        { clue: "Household appliances powered by this utility, now reaching millions more homes in the 1920s, transformed daily domestic life.", answer: "What is electricity?" },
+        { clue: "This mass-produced print media, including pulp magazines and daily papers, kept Americans informed and entertained all decade.", answer: "What is the newspaper/magazine industry (print media)?" },
+        { clue: "This 1920s form of air travel, alongside airplanes, captured the public imagination even before Lindbergh's famous flight.", answer: "What is aviation (the airplane/airship)?" }
+      ]},
+      { name: "Key Vocabulary", clues: [
+        { clue: "Being kept from voting, which left many Black Southerners with little say in their own government.", answer: "What is disenfranchisement?" },
+        { clue: "Henry Ford's first automobile, built in 1896 with a light frame and bicycle-style wheels.", answer: "What is the Quadricycle?" },
+        { clue: "A person who sold alcohol illegally during Prohibition.", answer: "What is a bootlegger?" },
+        { clue: "A way to pay for something, like a washing machine, in small payments over time instead of all at once.", answer: "What is the installment plan?" },
+        { clue: "Recordings made in the 1920s by Black artists and marketed to Black buyers, named for the era's segregation, that turned out to be worth millions to record companies.", answer: "What are race records?" }
+      ]}
+    ]}
+  ];
+  var CATEGORIES = GAME_SETS[0].categories;
+  function findSet(setId){
+    for(var i=0;i<GAME_SETS.length;i++){ if(GAME_SETS[i].id === setId) return GAME_SETS[i]; }
+    return GAME_SETS[0];
+  }
+  var VALUES = [100,200,300,400,500];
+  var ANSWER_TIME = 20; // seconds host has visible as a guide; not auto-enforced across the network
+
+  /* ---------------- Sound (same synthesized effects as the single-screen version) ---------------- */
+  var AudioCtx = window.AudioContext || window.webkitAudioContext;
+  var actx = null, soundOn = true;
+  function ctx(){ if(!actx && AudioCtx){ try{ actx = new AudioCtx(); }catch(e){ actx = null; } } return actx; }
+  function tone(freq, start, dur, type, gain){
+    var c = ctx(); if(!c || !soundOn) return;
+    try{
+      var osc = c.createOscillator(); var g = c.createGain();
+      osc.type = type || "sine"; osc.frequency.value = freq;
+      g.gain.value = 0; osc.connect(g); g.connect(c.destination);
+      var t0 = c.currentTime + start;
+      g.gain.setValueAtTime(0, t0);
+      g.gain.linearRampToValueAtTime(gain || 0.18, t0 + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      osc.start(t0); osc.stop(t0 + dur + 0.02);
+    }catch(e){}
+  }
+  function sfxSelect(){ tone(740,0,0.12,"triangle",0.15); tone(988,0.05,0.14,"triangle",0.13); }
+  function sfxCorrect(){ tone(523.25,0,0.14,"sine",0.18); tone(659.25,0.1,0.16,"sine",0.18); tone(784,0.2,0.26,"sine",0.2); }
+  function sfxWrong(){ tone(196,0,0.22,"sawtooth",0.16); tone(174.6,0.14,0.3,"sawtooth",0.16); }
+  function sfxBuzz(){ tone(880,0,0.1,"square",0.22); tone(1046.5,0.07,0.14,"square",0.2); }
+  function sfxDailyDouble(){ var notes=[392,523.25,659.25,784,987.77]; for(var i=0;i<notes.length;i++){ tone(notes[i], i*0.12, 0.3, "triangle", 0.2); } }
+
+  /* ---------------- Firebase ---------------- */
+  firebase.initializeApp(FIREBASE_CONFIG);
+  var db = firebase.database();
+  var roomCode = null;
+  var roomRef = null;
+  var game = null; // local mirror of the room's DB state
+
+  function randomCode(){
+    var chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no O/0 or I/1
+    var s = "";
+    for(var i=0;i<4;i++){ s += chars[Math.floor(Math.random()*chars.length)]; }
+    return s;
+  }
+
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, function(ch){
+      return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[ch];
+    });
+  }
+
+  /* ---------------- Setup overlay ---------------- */
+  var setupOverlay = document.getElementById("setupOverlay");
+  var lobbyOverlay = document.getElementById("lobbyOverlay");
+  var numTeamsEl = document.getElementById("numTeams");
+  var setupNamesEl = document.getElementById("setupNames");
+  var setPickerEl = document.getElementById("setPicker");
+  var teamCountChoice = 2;
+  var setChoice = "setA";
+
+  function renderSetPicker(){
+    setPickerEl.innerHTML = "";
+    GAME_SETS.forEach(function(s){
+      var b = document.createElement("button");
+      b.textContent = s.label;
+      b.className = s.id===setChoice ? "selected" : "";
+      b.addEventListener("click", function(){ setChoice = s.id; renderSetPicker(); });
+      setPickerEl.appendChild(b);
+    });
+  }
+  function renderNumTeams(){
+    numTeamsEl.innerHTML = "";
+    [2,3,4].forEach(function(n){
+      var b = document.createElement("button");
+      b.textContent = n;
+      b.className = n===teamCountChoice ? "selected" : "";
+      b.addEventListener("click", function(){ teamCountChoice = n; renderNumTeams(); renderSetupNames(); });
+      numTeamsEl.appendChild(b);
+    });
+  }
+  function renderSetupNames(){
+    setupNamesEl.innerHTML = "";
+    for(var i=0;i<teamCountChoice;i++){
+      var input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = "Team " + (i+1) + " name";
+      input.id = "setupName"+i;
+      setupNamesEl.appendChild(input);
+    }
+  }
+  renderSetPicker(); renderNumTeams(); renderSetupNames();
+
+  document.getElementById("btnCreate").addEventListener("click", function(){
+    var teams = {};
+    for(var i=0;i<teamCountChoice;i++){
+      var val = document.getElementById("setupName"+i).value.trim();
+      teams[i] = { name: val || ("Team "+(i+1)), score: 0 };
+    }
+    createGame(setChoice, teams);
+  });
+
+  function pickDailyDoubles(categories){
+    var keys = [];
+    for(var c=0;c<categories.length;c++){ for(var v=0;v<VALUES.length;v++){ keys.push(c+"-"+v); } }
+    var pool = keys.filter(function(k){ return k.split("-")[1] !== "0"; });
+    var chosen = [];
+    while(chosen.length < 2 && pool.length){
+      var idx = Math.floor(Math.random()*pool.length);
+      chosen.push(pool.splice(idx,1)[0]);
+    }
+    return chosen;
+  }
+
+  function createGame(setId, teams){
+    var set = findSet(setId);
+    CATEGORIES = set.categories;
+    roomCode = randomCode();
+    roomRef = db.ref("games/" + roomCode);
+    var initial = {
+      createdAt: firebase.database.ServerValue.TIMESTAMP,
+      status: "lobby",
+      setId: setId,
+      teams: teams,
+      activeTeam: 0,
+      used: {},
+      dailyDoubles: pickDailyDoubles(CATEGORIES),
+      players: {},
+      currentClue: null
+    };
+    roomRef.set(initial).then(function(){
+      attachRoomListener();
+      document.getElementById("lobbyCode").textContent = roomCode;
+      var url = location.href.replace(/index\.html.*$/, "player.html");
+      document.getElementById("lobbyUrl").textContent = url;
+      document.getElementById("roomBadgeCode").textContent = roomCode;
+      document.getElementById("roomBadge").hidden = false;
+      setupOverlay.hidden = true;
+      lobbyOverlay.hidden = false;
+    }).catch(function(err){
+      alert("Couldn't create the game (check your internet connection): " + err.message);
+    });
+  }
+
+  document.getElementById("btnBackToSetup").addEventListener("click", function(){
+    if(roomRef) roomRef.off();
+    roomRef = null; roomCode = null; game = null;
+    lobbyOverlay.hidden = true;
+    setupOverlay.hidden = false;
+  });
+
+  document.getElementById("btnStartGame").addEventListener("click", function(){
+    if(!roomRef) return;
+    roomRef.update({ status: "playing" });
+  });
+
+  document.getElementById("btnNewGame").addEventListener("click", function(){
+    if(confirm("Start a brand new game? This ends the current room.")){
+      if(roomRef) roomRef.off();
+      roomRef = null; roomCode = null; game = null;
+      document.getElementById("roomBadge").hidden = true;
+      document.getElementById("board").hidden = true;
+      document.getElementById("footerNote").hidden = true;
+      document.getElementById("scoreboard").innerHTML = "";
+      teamCountChoice = 2; setChoice = "setA";
+      renderSetPicker(); renderNumTeams(); renderSetupNames();
+      lobbyOverlay.hidden = true;
+      setupOverlay.hidden = false;
+    }
+  });
+
+  document.getElementById("btnSound").addEventListener("click", function(){
+    soundOn = !soundOn;
+    this.textContent = soundOn ? "🔊 Sound On" : "🔇 Sound Off";
+    this.setAttribute("aria-pressed", soundOn ? "true" : "false");
+    if(soundOn) sfxSelect();
+  });
+
+  /* ---------------- Live sync ---------------- */
+  function attachRoomListener(){
+    roomRef.on("value", function(snap){
+      var val = snap.val();
+      if(!val) return;
+      var prevClue = game ? game.currentClue : null;
+      game = val;
+      if(game.setId){ CATEGORIES = findSet(game.setId).categories; document.getElementById("currentSetLabel").textContent = findSet(game.setId).label; }
+      renderLobbyList();
+      renderScoreboard();
+      if(game.status === "playing"){
+        lobbyOverlay.hidden = true;
+        document.getElementById("board").hidden = false;
+        document.getElementById("footerNote").hidden = false;
+        renderBoard();
+      }
+      renderClueFromState(prevClue);
+    });
+  }
+
+  function renderLobbyList(){
+    var list = document.getElementById("lobbyList");
+    var players = (game && game.players) || {};
+    var ids = Object.keys(players);
+    if(!ids.length){
+      list.innerHTML = '<div class="lobby-empty">Waiting for students to join&hellip;</div>';
+      return;
+    }
+    var teams = (game && game.teams) || {};
+    list.innerHTML = ids.map(function(pid){
+      var p = players[pid];
+      var teamName = teams[p.teamId] ? teams[p.teamId].name : "Team ?";
+      return '<div class="lobby-row"><span>' + escapeHtml(p.name) + '</span><span class="hint">' + escapeHtml(teamName) + '</span></div>';
+    }).join("");
+  }
+
+  /* ---------------- Scoreboard ---------------- */
+  var activeClueValue = 100;
+  function renderScoreboard(){
+    var scoreboardEl = document.getElementById("scoreboard");
+    scoreboardEl.innerHTML = "";
+    if(!game || !game.teams) return;
+    var buzzWinnerTeam = (game.currentClue && game.currentClue.buzzWinner) ? game.currentClue.buzzWinner.teamId : null;
+    Object.keys(game.teams).forEach(function(tid){
+      var team = game.teams[tid];
+      var isActive = String(game.activeTeam) === String(tid);
+      var isBuzzed = buzzWinnerTeam !== null && String(buzzWinnerTeam) === String(tid);
+      var card = document.createElement("div");
+      card.className = "team-card" + (isActive ? " active" : "") + (isBuzzed ? " buzzed" : "");
+
+      var nameRow = document.createElement("div");
+      nameRow.className = "team-name-row";
+      var nameSpan = document.createElement("span");
+      nameSpan.className = "team-name";
+      nameSpan.textContent = team.name;
+      nameRow.appendChild(nameSpan);
+      card.appendChild(nameRow);
+
+      var scoreEl = document.createElement("div");
+      scoreEl.className = "team-score" + (team.score < 0 ? " neg" : "");
+      scoreEl.textContent = "$" + team.score;
+      card.appendChild(scoreEl);
+
+      var roster = document.createElement("div");
+      roster.className = "team-roster";
+      var members = Object.keys(game.players || {}).filter(function(pid){ return String(game.players[pid].teamId) === String(tid); }).map(function(pid){ return game.players[pid].name; });
+      roster.textContent = members.length ? members.join(", ") : "No players yet";
+      card.appendChild(roster);
+
+      var btnRow = document.createElement("div");
+      btnRow.className = "score-btns";
+      var minus = document.createElement("button");
+      minus.textContent = "−$" + activeClueValue;
+      minus.title = "Manual adjustment by the on-screen clue's value";
+      minus.addEventListener("click", function(){ adjustScore(tid, -activeClueValue); });
+      var plus = document.createElement("button");
+      plus.textContent = "+$" + activeClueValue;
+      plus.title = "Manual adjustment by the on-screen clue's value";
+      plus.addEventListener("click", function(){ adjustScore(tid, activeClueValue); });
+      var turn = document.createElement("button");
+      turn.textContent = "Turn";
+      turn.className = "ghost";
+      turn.addEventListener("click", function(){ roomRef.update({ activeTeam: tid }); });
+      btnRow.appendChild(minus); btnRow.appendChild(plus); btnRow.appendChild(turn);
+      card.appendChild(btnRow);
+
+      scoreboardEl.appendChild(card);
+    });
+  }
+  function adjustScore(tid, delta){
+    if(!game || !game.teams[tid]) return;
+    roomRef.child("teams/" + tid + "/score").set(game.teams[tid].score + delta);
+  }
+
+  /* ---------------- Board ---------------- */
+  function renderBoard(){
+    var boardEl = document.getElementById("board");
+    boardEl.innerHTML = "";
+    CATEGORIES.forEach(function(cat){
+      var head = document.createElement("div");
+      head.className = "cat-head";
+      head.textContent = cat.name;
+      boardEl.appendChild(head);
+    });
+    for(var v=0; v<VALUES.length; v++){
+      for(var c=0; c<CATEGORIES.length; c++){
+        var key = c+"-"+v;
+        var tile = document.createElement("div");
+        var used = !!(game.used && game.used[key]);
+        tile.className = "tile" + (used ? " used" : "");
+        tile.textContent = used ? "" : ("$"+VALUES[v]);
+        tile.tabIndex = used ? -1 : 0;
+        tile.setAttribute("role","button");
+        tile.setAttribute("aria-label", used ? "Used clue" : (CATEGORIES[c].name + " for $" + VALUES[v]));
+        (function(c,v,key){
+          function activate(){
+            if(game.used && game.used[key]) return;
+            if(game.currentClue) return; // a clue is already open
+            sfxSelect();
+            openClue(c,v,key);
+          }
+          tile.addEventListener("click", activate);
+          tile.addEventListener("keydown", function(e){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); activate(); } });
+        })(c,v,key);
+        boardEl.appendChild(tile);
+      }
+    }
+  }
+
+  /* ---------------- Clue flow (buzzer-driven, synced via Firebase) ---------------- */
+  var clueOverlay = document.getElementById("clueOverlay");
+  var clueStage = document.getElementById("clueStage");
+  var lastRenderedClueSig = null;
+
+  function openClue(c, v, key){
+    var isDD = game.dailyDoubles.indexOf(key) !== -1;
+    activeClueValue = VALUES[v];
+    var clue = {
+      c: c, v: v, key: key, isDD: isDD,
+      stage: isDD ? "wagering" : "buzzing",
+      buzzWinner: null,
+      excludedTeams: {},
+      wager: 0
+    };
+    roomRef.child("currentClue").set(clue);
+    if(isDD) sfxDailyDouble();
+  }
+
+  function closeClue(){
+    roomRef.child("currentClue").set(null);
+  }
+
+  function markUsedAndClose(key){
+    var updates = {};
+    updates["used/" + key] = true;
+    updates["currentClue"] = null;
+    roomRef.update(updates);
+  }
+
+  function renderClueFromState(prevClue){
+    var clue = game.currentClue;
+    if(!clue){
+      clueOverlay.hidden = true;
+      clueStage.innerHTML = "";
+      lastRenderedClueSig = null;
+      activeClueValue = 100;
+      renderScoreboard();
+      return;
+    }
+    clueOverlay.hidden = false;
+    activeClueValue = VALUES[clue.v];
+
+    // Detect a fresh buzz winner arriving from a student device to play a sound.
+    if(clue.buzzWinner && (!prevClue || !prevClue.buzzWinner || prevClue.buzzWinner.pid !== clue.buzzWinner.pid)){
+      sfxBuzz();
+    }
+
+    var sig = clue.key + "|" + clue.stage + "|" + (clue.buzzWinner ? clue.buzzWinner.pid : "") + "|" + Object.keys(clue.excludedTeams||{}).length;
+    if(sig === lastRenderedClueSig) { renderScoreboard(); return; }
+    lastRenderedClueSig = sig;
+
+    if(clue.isDD){
+      renderDailyDoubleStage(clue);
+    } else {
+      renderRegularStage(clue);
+    }
+    renderScoreboard();
+  }
+
+  function renderDailyDoubleStage(clue){
+    var data = CATEGORIES[clue.c].clues[clue.v];
+    var baseValue = VALUES[clue.v];
+    var team = game.teams[game.activeTeam];
+    var maxWager = Math.max(team ? team.score : 0, baseValue, 0);
+
+    if(clue.stage === "wagering"){
+      clueStage.innerHTML =
+        '<div class="dd-banner">DAILY DOUBLE</div>' +
+        '<p class="hint">' + escapeHtml(team ? team.name : "This team") + ' found it. Ask them to wager, then enter it below (max $' + maxWager + ').</p>' +
+        '<input class="wager-input" id="ddWagerInput" type="number" inputmode="numeric" min="0" max="' + maxWager + '" step="1" value="' + Math.min(baseValue, maxWager) + '">' +
+        '<div class="stage-actions"><button class="primary" id="ddWagerGo">Lock In Wager</button></div>';
+      clueStage.querySelector("#ddWagerGo").addEventListener("click", function(){
+        var input = clueStage.querySelector("#ddWagerInput");
+        var w = parseInt(input.value, 10);
+        if(isNaN(w) || w < 0) w = 0;
+        if(w > maxWager) w = maxWager;
+        roomRef.child("currentClue").update({ stage: "answering", wager: w });
+      });
+      return;
+    }
+
+    // stage === "answering" or "judging" — host alone sees clue + answer, judges this one team
+    var wager = clue.wager || 0;
+    clueStage.innerHTML =
+      '<div class="stage-kicker"><span>' + escapeHtml(CATEGORIES[clue.c].name) + ' &middot; DAILY DOUBLE</span><span>$' + wager + '</span></div>' +
+      '<div class="hint" style="margin:0;">' + escapeHtml(team ? team.name : "") + ' wagered $' + wager + '</div>' +
+      '<div class="clue-text">' + escapeHtml(data.clue) + '</div>' +
+      '<div class="answer-text">' + escapeHtml(data.answer) + '</div>' +
+      '<div class="award-row"><h3>Did they answer correctly?</h3><div class="award-grid" id="ddAwardGrid"></div></div>';
+    var grid = clueStage.querySelector("#ddAwardGrid");
+    var correctBtn = document.createElement("button");
+    correctBtn.className = "primary"; correctBtn.textContent = "Correct (+$" + wager + ")";
+    correctBtn.addEventListener("click", function(){
+      adjustScore(game.activeTeam, wager);
+      sfxCorrect();
+      markUsedAndClose(clue.key);
+    });
+    var wrongBtn = document.createElement("button");
+    wrongBtn.className = "danger"; wrongBtn.textContent = "Wrong (-$" + wager + ")";
+    wrongBtn.addEventListener("click", function(){
+      adjustScore(game.activeTeam, -wager);
+      sfxWrong();
+      markUsedAndClose(clue.key);
+    });
+    grid.appendChild(correctBtn); grid.appendChild(wrongBtn);
+  }
+
+  function renderRegularStage(clue){
+    var data = CATEGORIES[clue.c].clues[clue.v];
+    var value = VALUES[clue.v];
+
+    if(clue.stage === "buzzing" && !clue.buzzWinner){
+      var excluded = clue.excludedTeams || {};
+      var allExcluded = Object.keys(game.teams).every(function(tid){ return excluded[tid]; });
+      clueStage.innerHTML =
+        '<div class="stage-kicker"><span>' + escapeHtml(CATEGORIES[clue.c].name) + '</span><span>$' + value + '</span></div>' +
+        '<div class="clue-text">' + escapeHtml(data.clue) + '</div>' +
+        '<div class="buzz-status waiting" id="buzzStatus">' + (allExcluded ? "No teams left to buzz in." : "Waiting for a team to buzz in&hellip;") + '</div>' +
+        '<div class="stage-actions">' +
+          (allExcluded ? '<button class="primary" id="btnRevealClose">Reveal Answer &amp; Close</button>' : '<button class="ghost" id="btnSkip">Close (No Score)</button>') +
+        '</div>';
+      var revealBtn = clueStage.querySelector("#btnRevealClose");
+      if(revealBtn){
+        revealBtn.addEventListener("click", function(){
+          sfxWrong();
+          markUsedAndClose(clue.key);
+        });
+      }
+      var skipBtn = clueStage.querySelector("#btnSkip");
+      if(skipBtn){
+        skipBtn.addEventListener("click", function(){ markUsedAndClose(clue.key); });
+      }
+      return;
+    }
+
+    if(clue.buzzWinner){
+      var bw = clue.buzzWinner;
+      var teamName = game.teams[bw.teamId] ? game.teams[bw.teamId].name : "A team";
+      clueStage.innerHTML =
+        '<div class="stage-kicker"><span>' + escapeHtml(CATEGORIES[clue.c].name) + '</span><span>$' + value + '</span></div>' +
+        '<div class="clue-text">' + escapeHtml(data.clue) + '</div>' +
+        '<div class="buzz-status won">' + escapeHtml(teamName) + ' (' + escapeHtml(bw.name) + ') buzzed in!</div>' +
+        '<div class="answer-text">' + escapeHtml(data.answer) + '</div>' +
+        '<div class="award-row"><h3>Correct?</h3><div class="award-grid" id="regAwardGrid"></div></div>';
+      var grid = clueStage.querySelector("#regAwardGrid");
+      var correctBtn = document.createElement("button");
+      correctBtn.className = "primary"; correctBtn.textContent = "Correct (+$" + value + ")";
+      correctBtn.addEventListener("click", function(){
+        adjustScore(bw.teamId, value);
+        roomRef.update({ activeTeam: bw.teamId });
+        sfxCorrect();
+        markUsedAndClose(clue.key);
+      });
+      var wrongBtn = document.createElement("button");
+      wrongBtn.className = "danger"; wrongBtn.textContent = "Wrong (-$" + value + ")";
+      wrongBtn.addEventListener("click", function(){
+        adjustScore(bw.teamId, -value);
+        sfxWrong();
+        var updates = {};
+        updates["currentClue/excludedTeams/" + bw.teamId] = true;
+        updates["currentClue/buzzWinner"] = null;
+        roomRef.update(updates);
+      });
+      grid.appendChild(correctBtn); grid.appendChild(wrongBtn);
+    }
+  }
+
+  /* ---------------- Hot update support ---------------- */
+  if(window.claude && window.claude.hot && window.claude.hot.ready){
+    window.claude.hot.ready(function(){});
+  }
+
+})();
+</script>
