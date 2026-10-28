@@ -653,7 +653,8 @@
       stage: isDD ? "wagering" : "buzzing",
       buzzWinner: null,
       excludedTeams: {},
-      wager: 0
+      wager: 0,
+      answerRevealed: false
     };
     roomRef.child("currentClue").set(clue);
     if(isDD) sfxDailyDouble();
@@ -688,7 +689,7 @@
       sfxBuzz();
     }
 
-    var sig = clue.key + "|" + clue.stage + "|" + (clue.buzzWinner ? clue.buzzWinner.pid : "") + "|" + Object.keys(clue.excludedTeams||{}).length;
+    var sig = clue.key + "|" + clue.stage + "|" + (clue.buzzWinner ? clue.buzzWinner.pid : "") + "|" + Object.keys(clue.excludedTeams||{}).length + "|" + (clue.answerRevealed ? "1" : "0");
     if(sig === lastRenderedClueSig) { renderScoreboard(); return; }
     lastRenderedClueSig = sig;
 
@@ -776,7 +777,21 @@
       return;
     }
 
-    if(clue.buzzWinner){
+    if(clue.buzzWinner && !clue.answerRevealed){
+      var bw1 = clue.buzzWinner;
+      var teamName1 = game.teams[bw1.teamId] ? game.teams[bw1.teamId].name : "A team";
+      clueStage.innerHTML =
+        '<div class="stage-kicker"><span>' + escapeHtml(CATEGORIES[clue.c].name) + '</span><span>$' + value + '</span></div>' +
+        '<div class="clue-text">' + escapeHtml(data.clue) + '</div>' +
+        '<div class="buzz-status won">' + escapeHtml(teamName1) + ' (' + escapeHtml(bw1.name) + ') buzzed in! Let them answer out loud.</div>' +
+        '<div class="stage-actions"><button class="primary" id="btnRevealAnswer">Reveal Answer</button></div>';
+      clueStage.querySelector("#btnRevealAnswer").addEventListener("click", function(){
+        roomRef.child("currentClue/answerRevealed").set(true);
+      });
+      return;
+    }
+
+    if(clue.buzzWinner && clue.answerRevealed){
       var bw = clue.buzzWinner;
       var teamName = game.teams[bw.teamId] ? game.teams[bw.teamId].name : "A team";
       clueStage.innerHTML =
@@ -802,6 +817,7 @@
         var updates = {};
         updates["currentClue/excludedTeams/" + bw.teamId] = true;
         updates["currentClue/buzzWinner"] = null;
+        updates["currentClue/answerRevealed"] = false;
         roomRef.update(updates);
       });
       grid.appendChild(correctBtn); grid.appendChild(wrongBtn);
