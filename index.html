@@ -194,6 +194,12 @@
     <div class="stage-actions">
       <button class="primary" id="btnCreate">Create Game &amp; Get Room Code</button>
     </div>
+    <p class="hint" style="margin-top:14px;">Printable answer keys</p>
+    <div class="stage-actions">
+      <button class="ghost" id="btnPrintAnswers1" type="button">Print Answers: Set 1</button>
+      <button class="ghost" id="btnPrintAnswers2" type="button">Print Answers: Set 2</button>
+      <button class="ghost" id="btnPrintAnswers3" type="button">Print Answers: Set 3</button>
+    </div>
   </div>
 </div>
 
@@ -425,6 +431,16 @@
     }
   }
   renderSetPicker(); renderNumTeams(); renderSetupNames();
+
+  document.getElementById("btnPrintAnswers1").addEventListener("click", function(){
+    window.open("answer-key-set1.pdf", "_blank");
+  });
+  document.getElementById("btnPrintAnswers2").addEventListener("click", function(){
+    window.open("answer-key-set2.pdf", "_blank");
+  });
+  document.getElementById("btnPrintAnswers3").addEventListener("click", function(){
+    window.open("answer-key-set3.pdf", "_blank");
+  });
 
   document.getElementById("btnCreate").addEventListener("click", function(){
     var teams = {};
