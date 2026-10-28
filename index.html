@@ -769,52 +769,36 @@
     var data = CATEGORIES[clue.c].clues[clue.v];
     var value = VALUES[clue.v];
 
-    if(clue.stage === "buzzing" && !clue.buzzWinner){
-      var excluded = clue.excludedTeams || {};
-      var allExcluded = Object.keys(game.teams).every(function(tid){ return excluded[tid]; });
+    // Final state: the answer has been revealed (either a team got it right and the
+    // host confirmed the written answer, or the host stopped the buzz-in round).
+    // Nothing more to judge here — just show the answer and let the host close out.
+    if(clue.answerRevealed){
+      var bwFinal = clue.buzzWinner;
+      var statusLine = bwFinal
+        ? ('<div class="buzz-status won">' + escapeHtml(game.teams[bwFinal.teamId] ? game.teams[bwFinal.teamId].name : "A team") + ' (' + escapeHtml(bwFinal.name) + ') got it!</div>')
+        : '<div class="buzz-status waiting">No one buzzed in on this one.</div>';
       clueStage.innerHTML =
         '<div class="stage-kicker"><span>' + escapeHtml(CATEGORIES[clue.c].name) + '</span><span>$' + value + '</span></div>' +
         '<div class="clue-text">' + escapeHtml(data.clue) + '</div>' +
-        '<div class="buzz-status waiting" id="buzzStatus">' + (allExcluded ? "No teams left to buzz in." : "Waiting for a team to buzz in&hellip;") + '</div>' +
-        '<div class="stage-actions">' +
-          (allExcluded ? '<button class="primary" id="btnRevealClose">Reveal Answer &amp; Close</button>' : '<button class="ghost" id="btnSkip">Close (No Score)</button>') +
-        '</div>';
-      var revealBtn = clueStage.querySelector("#btnRevealClose");
-      if(revealBtn){
-        revealBtn.addEventListener("click", function(){
-          sfxWrong();
-          markUsedAndClose(clue.key);
-        });
-      }
-      var skipBtn = clueStage.querySelector("#btnSkip");
-      if(skipBtn){
-        skipBtn.addEventListener("click", function(){ markUsedAndClose(clue.key); });
-      }
-      return;
-    }
-
-    if(clue.buzzWinner && !clue.answerRevealed){
-      var bw1 = clue.buzzWinner;
-      var teamName1 = game.teams[bw1.teamId] ? game.teams[bw1.teamId].name : "A team";
-      clueStage.innerHTML =
-        '<div class="stage-kicker"><span>' + escapeHtml(CATEGORIES[clue.c].name) + '</span><span>$' + value + '</span></div>' +
-        '<div class="clue-text">' + escapeHtml(data.clue) + '</div>' +
-        '<div class="buzz-status won">' + escapeHtml(teamName1) + ' (' + escapeHtml(bw1.name) + ') buzzed in! Let them answer out loud.</div>' +
-        '<div class="stage-actions"><button class="primary" id="btnRevealAnswer">Reveal Answer</button></div>';
-      clueStage.querySelector("#btnRevealAnswer").addEventListener("click", function(){
-        roomRef.child("currentClue/answerRevealed").set(true);
+        statusLine +
+        '<div class="answer-text">' + escapeHtml(data.answer) + '</div>' +
+        '<div class="stage-actions"><button class="primary" id="btnCloseClue">Close</button></div>';
+      clueStage.querySelector("#btnCloseClue").addEventListener("click", function(){
+        markUsedAndClose(clue.key);
       });
       return;
     }
 
-    if(clue.buzzWinner && clue.answerRevealed){
+    // A team has buzzed in: judge Correct/Wrong right away, before the answer is
+    // ever shown on screen. Wrong excludes that team and reopens the buzzer for
+    // everyone else; Correct moves straight to the reveal/close step above.
+    if(clue.buzzWinner){
       var bw = clue.buzzWinner;
       var teamName = game.teams[bw.teamId] ? game.teams[bw.teamId].name : "A team";
       clueStage.innerHTML =
         '<div class="stage-kicker"><span>' + escapeHtml(CATEGORIES[clue.c].name) + '</span><span>$' + value + '</span></div>' +
         '<div class="clue-text">' + escapeHtml(data.clue) + '</div>' +
-        '<div class="buzz-status won">' + escapeHtml(teamName) + ' (' + escapeHtml(bw.name) + ') buzzed in!</div>' +
-        '<div class="answer-text">' + escapeHtml(data.answer) + '</div>' +
+        '<div class="buzz-status won">' + escapeHtml(teamName) + ' (' + escapeHtml(bw.name) + ') buzzed in! Let them answer out loud.</div>' +
         '<div class="award-row"><h3>Correct?</h3><div class="award-grid" id="regAwardGrid"></div></div>';
       var grid = clueStage.querySelector("#regAwardGrid");
       var correctBtn = document.createElement("button");
@@ -823,7 +807,7 @@
         adjustScore(bw.teamId, value);
         roomRef.update({ activeTeam: bw.teamId });
         sfxCorrect();
-        markUsedAndClose(clue.key);
+        roomRef.child("currentClue/answerRevealed").set(true);
       });
       var wrongBtn = document.createElement("button");
       wrongBtn.className = "danger"; wrongBtn.textContent = "Wrong (-$" + value + ")";
@@ -833,11 +817,30 @@
         var updates = {};
         updates["currentClue/excludedTeams/" + bw.teamId] = true;
         updates["currentClue/buzzWinner"] = null;
-        updates["currentClue/answerRevealed"] = false;
         roomRef.update(updates);
       });
       grid.appendChild(correctBtn); grid.appendChild(wrongBtn);
+      return;
     }
+
+    // Waiting for a buzz (or everyone eligible has already been judged wrong).
+    // The host can stop at any point and reveal the answer, or bail with no score.
+    var excluded = clue.excludedTeams || {};
+    var allExcluded = Object.keys(game.teams).every(function(tid){ return excluded[tid]; });
+    clueStage.innerHTML =
+      '<div class="stage-kicker"><span>' + escapeHtml(CATEGORIES[clue.c].name) + '</span><span>$' + value + '</span></div>' +
+      '<div class="clue-text">' + escapeHtml(data.clue) + '</div>' +
+      '<div class="buzz-status waiting" id="buzzStatus">' + (allExcluded ? "No teams left to buzz in." : "Waiting for a team to buzz in&hellip;") + '</div>' +
+      '<div class="stage-actions">' +
+        '<button class="primary" id="btnRevealAnswer">Reveal Answer</button>' +
+        '<button class="ghost" id="btnSkip">Close (No Score)</button>' +
+      '</div>';
+    clueStage.querySelector("#btnRevealAnswer").addEventListener("click", function(){
+      roomRef.child("currentClue/answerRevealed").set(true);
+    });
+    clueStage.querySelector("#btnSkip").addEventListener("click", function(){
+      markUsedAndClose(clue.key);
+    });
   }
 
   /* ---------------- Hot update support ---------------- */
