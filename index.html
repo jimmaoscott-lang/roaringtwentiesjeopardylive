@@ -370,6 +370,7 @@
   function sfxWrong(){ tone(196,0,0.22,"sawtooth",0.16); tone(174.6,0.14,0.3,"sawtooth",0.16); }
   function sfxBuzz(){ tone(880,0,0.1,"square",0.22); tone(1046.5,0.07,0.14,"square",0.2); }
   function sfxDailyDouble(){ var notes=[392,523.25,659.25,784,987.77]; for(var i=0;i<notes.length;i++){ tone(notes[i], i*0.12, 0.3, "triangle", 0.2); } }
+  function sfxFinal(){ var notes=[392,440,523.25,587.33,659.25,784,880]; for(var i=0;i<notes.length;i++){ tone(notes[i], i*0.11, 0.35, "triangle", 0.22); } }
 
   /* ---------------- Firebase ---------------- */
   firebase.initializeApp(FIREBASE_CONFIG);
@@ -662,8 +663,27 @@
   var lastRenderedClueSig = null;
 
   function openClue(c, v, key){
-    var isDD = game.dailyDoubles.indexOf(key) !== -1;
     activeClueValue = VALUES[v];
+
+    // The very last unused tile on the board becomes Final Jeopardy, regardless of
+    // whether it happened to be pre-assigned as a Daily Double.
+    var totalTiles = CATEGORIES.length * VALUES.length;
+    var usedCount = Object.keys(game.used || {}).length;
+    if(usedCount === totalTiles - 1){
+      var finalClue = {
+        isFinal: true,
+        c: c, v: v, key: key,
+        stage: "wagering",
+        wagers: {},
+        judged: {},
+        answerRevealed: false
+      };
+      roomRef.child("currentClue").set(finalClue);
+      sfxFinal();
+      return;
+    }
+
+    var isDD = game.dailyDoubles.indexOf(key) !== -1;
     var clue = {
       c: c, v: v, key: key, isDD: isDD,
       stage: isDD ? "wagering" : "buzzing",
@@ -705,11 +725,14 @@
       sfxBuzz();
     }
 
-    var sig = clue.key + "|" + clue.stage + "|" + (clue.buzzWinner ? clue.buzzWinner.pid : "") + "|" + Object.keys(clue.excludedTeams||{}).length + "|" + (clue.answerRevealed ? "1" : "0");
+    var sig = clue.key + "|" + clue.stage + "|" + (clue.buzzWinner ? clue.buzzWinner.pid : "") + "|" + Object.keys(clue.excludedTeams||{}).length + "|" + (clue.answerRevealed ? "1" : "0") +
+      (clue.isFinal ? ("|F" + Object.keys(clue.wagers||{}).length + "-" + Object.keys(clue.judged||{}).length) : "");
     if(sig === lastRenderedClueSig) { renderScoreboard(); return; }
     lastRenderedClueSig = sig;
 
-    if(clue.isDD){
+    if(clue.isFinal){
+      renderFinalStage(clue);
+    } else if(clue.isDD){
       renderDailyDoubleStage(clue);
     } else {
       renderRegularStage(clue);
@@ -739,30 +762,137 @@
       return;
     }
 
-    // stage === "answering" or "judging" — host alone sees clue + answer, judges this one team
     var wager = clue.wager || 0;
+
+    // Final state: the answer has been revealed after judging — just show it and close.
+    if(clue.answerRevealed){
+      clueStage.innerHTML =
+        '<div class="stage-kicker"><span>' + escapeHtml(CATEGORIES[clue.c].name) + ' &middot; DAILY DOUBLE</span><span>$' + wager + '</span></div>' +
+        '<div class="hint" style="margin:0;">' + escapeHtml(team ? team.name : "") + ' wagered $' + wager + '</div>' +
+        '<div class="clue-text">' + escapeHtml(data.clue) + '</div>' +
+        '<div class="answer-text">' + escapeHtml(data.answer) + '</div>' +
+        '<div class="stage-actions"><button class="primary" id="btnCloseClue">Close</button></div>';
+      clueStage.querySelector("#btnCloseClue").addEventListener("click", function(){
+        markUsedAndClose(clue.key);
+      });
+      return;
+    }
+
+    // Judge correct/wrong before the answer is ever shown. Either way this moves
+    // straight to the reveal — a Daily Double only gives this one team a shot.
     clueStage.innerHTML =
       '<div class="stage-kicker"><span>' + escapeHtml(CATEGORIES[clue.c].name) + ' &middot; DAILY DOUBLE</span><span>$' + wager + '</span></div>' +
       '<div class="hint" style="margin:0;">' + escapeHtml(team ? team.name : "") + ' wagered $' + wager + '</div>' +
       '<div class="clue-text">' + escapeHtml(data.clue) + '</div>' +
-      '<div class="answer-text">' + escapeHtml(data.answer) + '</div>' +
-      '<div class="award-row"><h3>Did they answer correctly?</h3><div class="award-grid" id="ddAwardGrid"></div></div>';
+      '<div class="award-row"><h3>Correct?</h3><div class="award-grid" id="ddAwardGrid"></div></div>';
     var grid = clueStage.querySelector("#ddAwardGrid");
     var correctBtn = document.createElement("button");
     correctBtn.className = "primary"; correctBtn.textContent = "Correct (+$" + wager + ")";
     correctBtn.addEventListener("click", function(){
       adjustScore(game.activeTeam, wager);
       sfxCorrect();
-      markUsedAndClose(clue.key);
+      roomRef.child("currentClue/answerRevealed").set(true);
     });
     var wrongBtn = document.createElement("button");
     wrongBtn.className = "danger"; wrongBtn.textContent = "Wrong (-$" + wager + ")";
     wrongBtn.addEventListener("click", function(){
       adjustScore(game.activeTeam, -wager);
       sfxWrong();
-      markUsedAndClose(clue.key);
+      roomRef.child("currentClue/answerRevealed").set(true);
     });
     grid.appendChild(correctBtn); grid.appendChild(wrongBtn);
+  }
+
+  function renderFinalStage(clue){
+    var data = CATEGORIES[clue.c].clues[clue.v];
+
+    if(clue.stage === "wagering"){
+      var rows = Object.keys(game.teams).map(function(tid){
+        var team = game.teams[tid];
+        var maxWager = Math.max(team.score, 0);
+        return '<div class="setup-row"><span class="hint">' + escapeHtml(team.name) + ' (has $' + team.score + ')</span>' +
+          '<input class="wager-input" id="finalWager' + tid + '" type="number" inputmode="numeric" min="0" max="' + maxWager + '" step="1" value="0"></div>';
+      }).join("");
+      clueStage.innerHTML =
+        '<div class="dd-banner">FINAL JEOPARDY</div>' +
+        '<p class="hint">' + escapeHtml(CATEGORIES[clue.c].name) + ' &mdash; every team wagers up to what they have.</p>' +
+        rows +
+        '<div class="stage-actions"><button class="primary" id="finalWagerGo">Lock In Wagers</button></div>';
+      clueStage.querySelector("#finalWagerGo").addEventListener("click", function(){
+        var wagers = {};
+        Object.keys(game.teams).forEach(function(tid){
+          var team = game.teams[tid];
+          var maxWager = Math.max(team.score, 0);
+          var input = clueStage.querySelector("#finalWager" + tid);
+          var w = input ? parseInt(input.value, 10) : 0;
+          if(isNaN(w) || w < 0) w = 0;
+          if(w > maxWager) w = maxWager;
+          wagers[tid] = w;
+        });
+        roomRef.child("currentClue").update({ wagers: wagers, stage: "answering" });
+      });
+      return;
+    }
+
+    var wagers = clue.wagers || {};
+
+    // Read the clue aloud, give every team time to write an answer, then reveal.
+    if(!clue.answerRevealed){
+      clueStage.innerHTML =
+        '<div class="stage-kicker"><span>' + escapeHtml(CATEGORIES[clue.c].name) + ' &middot; FINAL JEOPARDY</span></div>' +
+        '<div class="clue-text">' + escapeHtml(data.clue) + '</div>' +
+        '<div class="hint">Give every team time to write their answer, then reveal it.</div>' +
+        '<div class="stage-actions"><button class="primary" id="btnRevealAnswer">Reveal Answer</button></div>';
+      clueStage.querySelector("#btnRevealAnswer").addEventListener("click", function(){
+        roomRef.child("currentClue/answerRevealed").set(true);
+      });
+      return;
+    }
+
+    // Answer is up: judge each team's wager, one team at a time.
+    var judged = clue.judged || {};
+    var rowsHtml = Object.keys(game.teams).map(function(tid){
+      var team = game.teams[tid];
+      var wager = wagers[tid] || 0;
+      if(judged[tid]){
+        var result = judged[tid] === "correct" ? ("Correct (+$" + wager + ")") : ("Wrong (-$" + wager + ")");
+        return '<div class="award-row"><h3>' + escapeHtml(team.name) + '</h3><div class="hint" style="text-align:center;margin:0;">' + result + '</div></div>';
+      }
+      return '<div class="award-row"><h3>' + escapeHtml(team.name) + ' wagered $' + wager + '</h3><div class="award-grid" id="finalGrid' + tid + '"></div></div>';
+    }).join("");
+
+    clueStage.innerHTML =
+      '<div class="stage-kicker"><span>' + escapeHtml(CATEGORIES[clue.c].name) + ' &middot; FINAL JEOPARDY</span></div>' +
+      '<div class="clue-text">' + escapeHtml(data.clue) + '</div>' +
+      '<div class="answer-text">' + escapeHtml(data.answer) + '</div>' +
+      rowsHtml +
+      '<div class="stage-actions"><button class="ghost" id="btnFinishFinal">Finish Game</button></div>';
+
+    Object.keys(game.teams).forEach(function(tid){
+      if(judged[tid]) return;
+      var grid = clueStage.querySelector("#finalGrid" + tid);
+      if(!grid) return;
+      var wager = wagers[tid] || 0;
+      var correctBtn = document.createElement("button");
+      correctBtn.className = "primary"; correctBtn.textContent = "Correct (+$" + wager + ")";
+      correctBtn.addEventListener("click", function(){
+        adjustScore(tid, wager);
+        sfxCorrect();
+        roomRef.child("currentClue/judged/" + tid).set("correct");
+      });
+      var wrongBtn = document.createElement("button");
+      wrongBtn.className = "danger"; wrongBtn.textContent = "Wrong (-$" + wager + ")";
+      wrongBtn.addEventListener("click", function(){
+        adjustScore(tid, -wager);
+        sfxWrong();
+        roomRef.child("currentClue/judged/" + tid).set("wrong");
+      });
+      grid.appendChild(correctBtn); grid.appendChild(wrongBtn);
+    });
+
+    clueStage.querySelector("#btnFinishFinal").addEventListener("click", function(){
+      markUsedAndClose(clue.key);
+    });
   }
 
   function renderRegularStage(clue){
