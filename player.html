@@ -109,6 +109,7 @@
     <div id="waitingMsg" class="big-status" hidden>Waiting for the teacher to start&hellip;</div>
     <button class="buzz-btn locked" id="buzzBtn" hidden disabled>READY</button>
     <div class="big-status" id="bigStatus" hidden></div>
+    <button type="button" id="btnLeave" style="background:transparent;color:var(--ink-dim);border-color:rgba(201,162,75,0.3);font-weight:600;">Leave Game</button>
   </div>
 </div>
 
@@ -293,6 +294,33 @@
       }
       return; // abort — someone already buzzed
     });
+  });
+
+  document.getElementById("btnLeave").addEventListener("click", function(){
+    if(!confirm("Leave this game? You can join the same game or a new one with a room code.")) return;
+    if(roomRef){
+      roomRef.child("players/" + pid).remove().catch(function(){});
+      roomRef.off();
+    }
+    try{
+      localStorage.removeItem("rt-jeopardy-room");
+      localStorage.removeItem("rt-jeopardy-name");
+      localStorage.removeItem("rt-jeopardy-team");
+    }catch(e){}
+    roomRef = null; roomCode = null; teams = null; selectedTeam = null; myTeamId = null;
+    lastClueKey = null; hasBuzzedThisClue = false;
+
+    roomInput.value = "";
+    nameInput.value = "";
+    joinError.textContent = "";
+    teamSection.hidden = true;
+    teamPick.innerHTML = "";
+    btnFindRoom.hidden = false;
+    btnJoin.hidden = true;
+
+    document.getElementById("playCard").hidden = true;
+    joinCard.hidden = false;
+    roomInput.focus();
   });
 
 })();
