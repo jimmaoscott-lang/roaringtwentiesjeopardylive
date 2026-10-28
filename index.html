@@ -70,7 +70,10 @@
   .team-name{ font-weight:700; letter-spacing:.03em; font-size:.95rem; color: var(--gold-bright); }
   .team-score{ font-family:'Bebas Neue',sans-serif; font-size:2rem; letter-spacing:.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
   .team-score.neg{ color: var(--burgundy-bright); }
-  .team-roster{ font-size:.72rem; color: var(--ink-dim); min-height: 1.2em; }
+  .team-roster{ font-size:.72rem; color: var(--ink-dim); min-height: 1.2em; display:flex; flex-wrap:wrap; gap:4px; }
+  .roster-chip{ display:inline-flex; align-items:center; gap:3px; background: rgba(255,255,255,0.05); border:1px solid rgba(201,162,75,0.25); border-radius:3px; padding:1px 2px 1px 6px; }
+  .roster-remove{ background:none; border:none; color: var(--burgundy-bright); cursor:pointer; font-size:.85rem; line-height:1; padding:2px 4px; border-radius:2px; }
+  .roster-remove:hover{ background: var(--burgundy-bright); color:#1a1208; }
   .score-btns{ display:flex; gap:6px; }
   .score-btns button{ flex:1; padding:6px 4px; font-size:.78rem; }
 
@@ -148,8 +151,11 @@
   .lobby-list{ display:flex; flex-direction:column; gap:8px; max-height: 320px; overflow-y:auto; }
   .lobby-row{
     display:flex; justify-content:space-between; align-items:center; background: var(--surface);
-    border:1px solid rgba(201,162,75,0.3); border-radius:4px; padding:8px 12px; font-size:.9rem;
+    border:1px solid rgba(201,162,75,0.3); border-radius:4px; padding:8px 12px; font-size:.9rem; gap:10px;
   }
+  .lobby-row-info{ display:flex; align-items:center; gap:8px; min-width:0; flex-wrap:wrap; }
+  .lobby-row-info .hint{ margin-left:6px; }
+  .lobby-remove{ flex-shrink:0; padding:4px 10px; font-size:.78rem; }
   .lobby-empty{ text-align:center; color: var(--ink-dim); font-style:italic; padding: 20px 0; }
   [hidden]{ display:none !important; }
 </style>
@@ -548,6 +554,14 @@
     });
   }
 
+  function removePlayer(pid){
+    var p = game && game.players && game.players[pid];
+    var label = p ? p.name : "this student";
+    if(confirm('Remove "' + label + '" from the game? They can rejoin with the room code if needed.')){
+      roomRef.child("players/" + pid).remove();
+    }
+  }
+
   function renderLobbyList(){
     var list = document.getElementById("lobbyList");
     var players = (game && game.players) || {};
@@ -560,8 +574,19 @@
     list.innerHTML = ids.map(function(pid){
       var p = players[pid];
       var teamName = teams[p.teamId] ? teams[p.teamId].name : "Team ?";
-      return '<div class="lobby-row"><span>' + escapeHtml(p.name) + '</span><span class="hint">' + escapeHtml(teamName) + '</span></div>';
+      return '<div class="lobby-row">' +
+        '<div class="lobby-row-info"><span>' + escapeHtml(p.name) + '</span><span class="hint">&middot; ' + escapeHtml(teamName) + '</span></div>' +
+        '<button class="ghost lobby-remove" type="button" data-remove-pid="' + escapeHtml(pid) + '">Remove</button>' +
+      '</div>';
     }).join("");
+    if(!list._removeWired){
+      list._removeWired = true;
+      list.addEventListener("click", function(e){
+        var btn = e.target.closest ? e.target.closest("[data-remove-pid]") : null;
+        if(!btn) return;
+        removePlayer(btn.getAttribute("data-remove-pid"));
+      });
+    }
   }
 
   /* ---------------- Scoreboard ---------------- */
@@ -593,8 +618,26 @@
 
       var roster = document.createElement("div");
       roster.className = "team-roster";
-      var members = Object.keys(game.players || {}).filter(function(pid){ return String(game.players[pid].teamId) === String(tid); }).map(function(pid){ return game.players[pid].name; });
-      roster.textContent = members.length ? members.join(", ") : "No players yet";
+      var memberPids = Object.keys(game.players || {}).filter(function(pid){ return String(game.players[pid].teamId) === String(tid); });
+      if(!memberPids.length){
+        roster.textContent = "No players yet";
+      } else {
+        memberPids.forEach(function(pid){
+          var chip = document.createElement("span");
+          chip.className = "roster-chip";
+          var nameSpan2 = document.createElement("span");
+          nameSpan2.textContent = game.players[pid].name;
+          chip.appendChild(nameSpan2);
+          var removeBtn = document.createElement("button");
+          removeBtn.className = "roster-remove";
+          removeBtn.type = "button";
+          removeBtn.textContent = "×";
+          removeBtn.setAttribute("aria-label", "Remove " + game.players[pid].name);
+          removeBtn.addEventListener("click", function(){ removePlayer(pid); });
+          chip.appendChild(removeBtn);
+          roster.appendChild(chip);
+        });
+      }
       card.appendChild(roster);
 
       var btnRow = document.createElement("div");
